@@ -81,6 +81,7 @@ let educativeMode = false;
 let boardHovering = false;
 let preferredMove = null;
 let hintRequestFen = null;
+let lastOpponentMove = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -404,6 +405,14 @@ function renderBoard() {
 
     if (targetSquares.has(square)) {
       button.classList.add("target");
+    }
+
+    if (lastOpponentMove && square === lastOpponentMove.from) {
+      button.classList.add("last-opp-from");
+    }
+
+    if (lastOpponentMove && square === lastOpponentMove.to) {
+      button.classList.add("last-opp-to");
     }
 
     if (checkedKingSquare && square === checkedKingSquare) {
@@ -765,12 +774,16 @@ async function makeAiMove() {
     return;
   }
 
-  const played = game.move(aiMove);
-  if (!played) {
+  let playedMove = game.move(aiMove);
+  if (!playedMove) {
     const fallback = moveFromUci(fallbackMoveUci());
     if (fallback) {
-      game.move(fallback);
+      playedMove = game.move(fallback);
     }
+  }
+
+  if (playedMove) {
+    lastOpponentMove = { from: playedMove.from, to: playedMove.to };
   }
 
   aiThinking = false;
@@ -818,6 +831,7 @@ function resetGame(playerColor) {
   gameResultAwarded = false;
   preferredMove = null;
   hintRequestFen = null;
+  lastOpponentMove = null;
   boardHovering = false;
   updateProgressInfo();
   render();
