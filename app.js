@@ -50,6 +50,7 @@ let aiColor = "b";
 let selectedSquare = null;
 let targetSquares = new Set();
 let aiThinking = false;
+let lastCheckAlertKey = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -232,8 +233,24 @@ function renderBoard() {
 
 function render() {
   updateInfoText();
+  maybeAlertCheck();
   updateMoveList();
   renderBoard();
+}
+
+function maybeAlertCheck() {
+  if (!isCheckState() || isGameOverState()) {
+    lastCheckAlertKey = null;
+    return;
+  }
+
+  const checkKey = game.fen();
+  if (lastCheckAlertKey === checkKey) {
+    return;
+  }
+
+  lastCheckAlertKey = checkKey;
+  alert(`${friendlyColor(game.turn())} is in check!`);
 }
 
 function isHumanTurn() {
@@ -485,6 +502,7 @@ function resetGame(playerColor) {
   aiColor = playerColor === "w" ? "b" : "w";
   clearSelection();
   aiThinking = false;
+  lastCheckAlertKey = null;
   render();
 
   if (game.turn() === aiColor) {
