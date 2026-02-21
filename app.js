@@ -565,8 +565,9 @@ async function onSquareClick(square) {
   }
 
   const piece = game.get(square);
+  const isMarkedTarget = targetSquares.has(square);
 
-  if (selectedSquare) {
+  if (selectedSquare && isMarkedTarget) {
     const candidate = maybePromote({
       from: selectedSquare,
       to: square,
