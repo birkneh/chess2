@@ -11,13 +11,18 @@
       <section class="board-panel">
         <div class="panel-header">
           <h1>Chess2</h1>
-          <span class="badge">Hard AI</span>
+          <span id="ai-badge" class="badge">Beginner AI</span>
         </div>
         <div id="board" class="board" aria-label="Chess board"></div>
         <div class="controls">
           <button id="new-game-btn" type="button">New Game</button>
           <button id="play-white-btn" type="button">Play White</button>
           <button id="play-black-btn" type="button">Play Black</button>
+          <label class="level-picker" for="level-select">
+            Level
+            <select id="level-select" aria-label="AI level"></select>
+          </label>
+          <button id="next-level-btn" type="button">Next Level</button>
         </div>
       </section>
 
@@ -26,7 +31,11 @@
         <p><strong>Status:</strong> <span id="status-text">Ready</span></p>
         <p><strong>Turn:</strong> <span id="turn-text">White</span></p>
         <p><strong>You:</strong> <span id="you-text">White</span></p>
-        <p><strong>AI:</strong> <span id="ai-text">Black (Hard)</span></p>
+        <p><strong>AI:</strong> <span id="ai-text">Black (Beginner)</span></p>
+        <p><strong>Level:</strong> <span id="level-text">Beginner</span></p>
+        <p><strong>Score:</strong> <span id="score-text">0</span></p>
+        <p><strong>Progress:</strong> <span id="progress-text">1 / 4</span></p>
+        <p id="level-points-text" class="level-points">+5/move, +80 win bonus</p>
         <h3>Moves</h3>
         <ol id="move-list" class="move-list"></ol>
       </aside>

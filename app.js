@@ -2,12 +2,17 @@ import { Chess } from "https://unpkg.com/chess.js@1.4.0/dist/esm/chess.js";
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const WHITE_VIEW_RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
-const HARD_DEPTH = 15;
 const AI_THINK_TIMEOUT_MS = 9000;
 const STOCKFISH_JS_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.js";
 const STOCKFISH_WASM_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.wasm";
+const LEVELS = [
+  { id: "beginner", label: "Beginner", depth: 4, movePoints: 5, winBonus: 80 },
+  { id: "intermediate", label: "Intermediate", depth: 7, movePoints: 10, winBonus: 180 },
+  { id: "advanced", label: "Advanced", depth: 11, movePoints: 16, winBonus: 320 },
+  { id: "hard", label: "Hard", depth: 15, movePoints: 24, winBonus: 520 },
+];
 
 const PIECE_IMAGES = {
   wp: "./assets/pieces/Chess_plt45.svg",
@@ -34,14 +39,21 @@ const PIECE_NAMES = {
 };
 
 const boardEl = document.getElementById("board");
+const badgeEl = document.getElementById("ai-badge");
 const statusEl = document.getElementById("status-text");
 const turnEl = document.getElementById("turn-text");
 const youEl = document.getElementById("you-text");
 const aiEl = document.getElementById("ai-text");
+const levelTextEl = document.getElementById("level-text");
+const scoreTextEl = document.getElementById("score-text");
+const progressTextEl = document.getElementById("progress-text");
+const levelPointsTextEl = document.getElementById("level-points-text");
 const moveListEl = document.getElementById("move-list");
 const newGameBtn = document.getElementById("new-game-btn");
 const playWhiteBtn = document.getElementById("play-white-btn");
 const playBlackBtn = document.getElementById("play-black-btn");
+const levelSelectEl = document.getElementById("level-select");
+const nextLevelBtn = document.getElementById("next-level-btn");
 
 const game = new Chess();
 
@@ -50,6 +62,10 @@ let aiColor = "b";
 let selectedSquare = null;
 let targetSquares = new Set();
 let aiThinking = false;
+let currentLevelIndex = 0;
+let unlockedLevelIndex = 0;
+let score = 0;
+let gameResultAwarded = false;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -59,6 +75,61 @@ let bestMoveRejecter = null;
 
 function friendlyColor(colorCode) {
   return colorCode === "w" ? "White" : "Black";
+}
+
+function getCurrentLevel() {
+  return LEVELS[currentLevelIndex];
+}
+
+function updateLevelSelector() {
+  levelSelectEl.innerHTML = "";
+
+  LEVELS.forEach((level, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = level.label;
+    option.disabled = index > unlockedLevelIndex;
+    levelSelectEl.appendChild(option);
+  });
+
+  levelSelectEl.value = String(currentLevelIndex);
+}
+
+function addScore(points) {
+  score += points;
+  scoreTextEl.textContent = String(score);
+}
+
+function updateProgressInfo(message = "") {
+  const level = getCurrentLevel();
+  badgeEl.textContent = `${level.label} AI`;
+  levelTextEl.textContent = level.label;
+  progressTextEl.textContent = `${unlockedLevelIndex + 1} / ${LEVELS.length}`;
+  levelPointsTextEl.textContent = `+${level.movePoints}/move, +${level.winBonus} win bonus${
+    message ? ` - ${message}` : ""
+  }`;
+}
+
+function canAdvanceToNextLevel() {
+  return currentLevelIndex < unlockedLevelIndex && currentLevelIndex < LEVELS.length - 1;
+}
+
+function updateNextLevelButton() {
+  nextLevelBtn.disabled = !canAdvanceToNextLevel();
+}
+
+function getKingSquare(color) {
+  for (let rank = 1; rank <= 8; rank += 1) {
+    for (const file of FILES) {
+      const square = `${file}${rank}`;
+      const piece = game.get(square);
+      if (piece && piece.type === "k" && piece.color === color) {
+        return square;
+      }
+    }
+  }
+
+  return null;
 }
 
 function callChessBool(methods) {
@@ -130,9 +201,10 @@ function clearSelection() {
 }
 
 function updateInfoText() {
+  const level = getCurrentLevel();
   turnEl.textContent = friendlyColor(game.turn());
   youEl.textContent = friendlyColor(humanColor);
-  aiEl.textContent = `${friendlyColor(aiColor)} (Hard)`;
+  aiEl.textContent = `${friendlyColor(aiColor)} (${level.label})`;
   statusEl.classList.remove("status-check");
 
   if (isGameOverState()) {
@@ -187,9 +259,38 @@ function updateMoveList() {
   moveListEl.scrollTop = moveListEl.scrollHeight;
 }
 
+function maybeHandleGameEndRewards() {
+  if (!isGameOverState() || gameResultAwarded || !isCheckmateState()) {
+    return;
+  }
+
+  gameResultAwarded = true;
+  const winnerColor = game.turn() === "w" ? "b" : "w";
+
+  if (winnerColor !== humanColor) {
+    updateProgressInfo("No bonus this round");
+    updateNextLevelButton();
+    return;
+  }
+
+  const level = getCurrentLevel();
+  addScore(level.winBonus);
+
+  if (currentLevelIndex === unlockedLevelIndex && unlockedLevelIndex < LEVELS.length - 1) {
+    unlockedLevelIndex += 1;
+    updateLevelSelector();
+    updateProgressInfo(`Next unlocked: ${LEVELS[unlockedLevelIndex].label}`);
+  } else {
+    updateProgressInfo(`Win bonus +${level.winBonus}`);
+  }
+
+  updateNextLevelButton();
+}
+
 function renderBoard() {
   const squares = getDisplaySquares();
   const disabledBoard = aiThinking || isGameOverState();
+  const checkedKingSquare = isCheckState() ? getKingSquare(game.turn()) : null;
   boardEl.innerHTML = "";
 
   squares.forEach((square) => {
@@ -209,6 +310,10 @@ function renderBoard() {
 
     if (targetSquares.has(square)) {
       button.classList.add("target");
+    }
+
+    if (checkedKingSquare && square === checkedKingSquare) {
+      button.classList.add("checked-king");
     }
 
     if (piece) {
@@ -235,8 +340,10 @@ function renderBoard() {
 
 function render() {
   updateInfoText();
+  maybeHandleGameEndRewards();
   updateMoveList();
   renderBoard();
+  updateNextLevelButton();
 }
 
 function isHumanTurn() {
@@ -380,6 +487,7 @@ async function ensureEngineReady() {
 
 async function requestAiMove(fen) {
   await ensureEngineReady();
+  const { depth } = getCurrentLevel();
 
   return new Promise((resolve, reject) => {
     if (!engineWorker) {
@@ -390,7 +498,7 @@ async function requestAiMove(fen) {
     bestMoveResolver = resolve;
     bestMoveRejecter = reject;
     engineWorker.postMessage(`position fen ${fen}`);
-    engineWorker.postMessage(`go depth ${HARD_DEPTH}`);
+    engineWorker.postMessage(`go depth ${depth}`);
 
     const timeout = setTimeout(() => {
       if (bestMoveResolver) {
@@ -466,6 +574,9 @@ async function onSquareClick(square) {
 
     const played = game.move(candidate);
     if (played) {
+      const level = getCurrentLevel();
+      addScore(level.movePoints);
+      updateProgressInfo(`Move bonus +${level.movePoints}`);
       clearSelection();
       render();
       await makeAiMove();
@@ -488,6 +599,8 @@ function resetGame(playerColor) {
   aiColor = playerColor === "w" ? "b" : "w";
   clearSelection();
   aiThinking = false;
+  gameResultAwarded = false;
+  updateProgressInfo();
   render();
 
   if (game.turn() === aiColor) {
@@ -495,8 +608,33 @@ function resetGame(playerColor) {
   }
 }
 
+function setLevel(index) {
+  if (Number.isNaN(index) || index < 0 || index > unlockedLevelIndex) {
+    return;
+  }
+
+  currentLevelIndex = index;
+  updateLevelSelector();
+  updateProgressInfo();
+  resetGame(humanColor);
+}
+
 newGameBtn.addEventListener("click", () => resetGame(humanColor));
 playWhiteBtn.addEventListener("click", () => resetGame("w"));
 playBlackBtn.addEventListener("click", () => resetGame("b"));
+levelSelectEl.addEventListener("change", (event) => {
+  const nextIndex = Number(event.target.value);
+  setLevel(nextIndex);
+});
+nextLevelBtn.addEventListener("click", () => {
+  if (!canAdvanceToNextLevel()) {
+    return;
+  }
 
+  setLevel(currentLevelIndex + 1);
+});
+
+updateLevelSelector();
+updateProgressInfo();
+scoreTextEl.textContent = String(score);
 render();
