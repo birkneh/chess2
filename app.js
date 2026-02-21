@@ -3,6 +3,7 @@ import { Chess } from "https://unpkg.com/chess.js@1.4.0/dist/esm/chess.js";
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const WHITE_VIEW_RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
 const AI_THINK_TIMEOUT_MS = 9000;
+const EXPERT_HINT_DEPTH = 17;
 const STOCKFISH_JS_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.js";
 const STOCKFISH_WASM_URL =
@@ -79,12 +80,19 @@ let gameResultAwarded = false;
 let educativeMode = false;
 let boardHovering = false;
 let preferredMove = null;
+let hintRequestFen = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
 let engineReadyHandler = null;
 let bestMoveResolver = null;
 let bestMoveRejecter = null;
+
+let hintWorker = null;
+let hintReadyPromise = null;
+let hintReadyHandler = null;
+let hintBestMoveResolver = null;
+let hintBestMoveRejecter = null;
 
 function friendlyColor(colorCode) {
   return colorCode === "w" ? "White" : "Black";
@@ -142,9 +150,10 @@ function getKingSquare(color) {
   return null;
 }
 
-function refreshPreferredMove() {
+function maybeRequestPreferredMove() {
   if (!educativeMode || aiThinking || isGameOverState() || !isHumanTurn()) {
     preferredMove = null;
+    hintRequestFen = null;
     return;
   }
 
@@ -153,9 +162,37 @@ function refreshPreferredMove() {
     return;
   }
 
-  const preferredUci = fallbackMoveUci();
-  const move = moveFromUci(preferredUci);
-  preferredMove = move ? { ...move, fen } : null;
+  if (hintRequestFen === fen) {
+    return;
+  }
+
+  hintRequestFen = fen;
+  requestExpertHintMove(fen)
+    .then((uciMove) => {
+      if (!educativeMode || aiThinking || !isHumanTurn() || game.fen() !== fen) {
+        return;
+      }
+
+      const move = moveFromUci(uciMove) || moveFromUci(fallbackMoveUci());
+      preferredMove = move ? { ...move, fen } : null;
+      updateHintText();
+      renderBoard();
+    })
+    .catch(() => {
+      if (!educativeMode || aiThinking || !isHumanTurn() || game.fen() !== fen) {
+        return;
+      }
+
+      const move = moveFromUci(fallbackMoveUci());
+      preferredMove = move ? { ...move, fen } : null;
+      updateHintText();
+      renderBoard();
+    })
+    .finally(() => {
+      if (hintRequestFen === fen) {
+        hintRequestFen = null;
+      }
+    });
 }
 
 function updateHintText() {
@@ -174,13 +211,18 @@ function updateHintText() {
     return;
   }
 
+  if (hintRequestFen === game.fen()) {
+    hintTextEl.textContent = "Calculating expert hint...";
+    return;
+  }
+
   if (!preferredMove) {
     hintTextEl.textContent = "No hint available";
     return;
   }
 
   hintTextEl.textContent = boardHovering
-    ? `${preferredMove.from} -> ${preferredMove.to}`
+    ? `Best: ${preferredMove.from} -> ${preferredMove.to}`
     : "Hover board to reveal best move";
 }
 
@@ -402,7 +444,7 @@ function render() {
   updateInfoText();
   maybeHandleGameEndRewards();
   updateMoveList();
-  refreshPreferredMove();
+  maybeRequestPreferredMove();
   updateHintText();
   renderBoard();
   updateNextLevelButton();
@@ -558,6 +600,101 @@ async function ensureEngineReady() {
   return engineReadyPromise;
 }
 
+function handleHintEngineLine(line) {
+  if (hintReadyHandler) {
+    hintReadyHandler(line);
+  }
+
+  if (hintBestMoveResolver && line.startsWith("bestmove")) {
+    const bestMove = line.trim().split(/\s+/)[1];
+    const resolver = hintBestMoveResolver;
+    hintBestMoveResolver = null;
+    hintBestMoveRejecter = null;
+    resolver(bestMove);
+  }
+}
+
+async function ensureHintEngineReady() {
+  if (hintReadyPromise) {
+    return hintReadyPromise;
+  }
+
+  hintReadyPromise = new Promise((resolve, reject) => {
+    try {
+      hintWorker = createStockfishWorker();
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const readyTimeout = setTimeout(() => {
+      reject(new Error("Hint engine initialization timed out"));
+    }, 10000);
+
+    hintWorker.onmessage = (event) => {
+      const line = typeof event.data === "string" ? event.data : String(event.data || "");
+      handleHintEngineLine(line);
+    };
+
+    hintWorker.onerror = (error) => {
+      reject(error);
+    };
+
+    hintReadyHandler = (line) => {
+      if (line === "uciok") {
+        hintWorker.postMessage("isready");
+      }
+      if (line === "readyok") {
+        clearTimeout(readyTimeout);
+        hintReadyHandler = null;
+        resolve();
+      }
+    };
+
+    hintWorker.postMessage("uci");
+  });
+
+  return hintReadyPromise;
+}
+
+async function requestExpertHintMove(fen) {
+  await ensureHintEngineReady();
+
+  return new Promise((resolve, reject) => {
+    if (!hintWorker) {
+      reject(new Error("Hint engine unavailable"));
+      return;
+    }
+
+    hintBestMoveResolver = resolve;
+    hintBestMoveRejecter = reject;
+    hintWorker.postMessage(`position fen ${fen}`);
+    hintWorker.postMessage(`go depth ${EXPERT_HINT_DEPTH}`);
+
+    const timeout = setTimeout(() => {
+      if (hintBestMoveResolver) {
+        hintWorker.postMessage("stop");
+      }
+    }, AI_THINK_TIMEOUT_MS);
+
+    const hardFailTimeout = setTimeout(() => {
+      if (hintBestMoveRejecter) {
+        const rejecter = hintBestMoveRejecter;
+        hintBestMoveResolver = null;
+        hintBestMoveRejecter = null;
+        rejecter(new Error("Hint move timeout"));
+      }
+    }, AI_THINK_TIMEOUT_MS + 1000);
+
+    const originalResolve = hintBestMoveResolver;
+    hintBestMoveResolver = (move) => {
+      clearTimeout(timeout);
+      clearTimeout(hardFailTimeout);
+      originalResolve(move);
+    };
+  });
+}
+
 async function requestAiMove(fen) {
   await ensureEngineReady();
   const { depth } = getCurrentLevel();
@@ -680,6 +817,7 @@ function resetGame(playerColor) {
   aiThinking = false;
   gameResultAwarded = false;
   preferredMove = null;
+  hintRequestFen = null;
   boardHovering = false;
   updateProgressInfo();
   render();
@@ -717,6 +855,7 @@ nextLevelBtn.addEventListener("click", () => {
 educativeToggleEl.addEventListener("change", (event) => {
   educativeMode = event.target.checked;
   preferredMove = null;
+  hintRequestFen = null;
   boardHovering = false;
   render();
 });
@@ -726,6 +865,7 @@ boardEl.addEventListener("mouseenter", () => {
   }
 
   boardHovering = true;
+  maybeRequestPreferredMove();
   updateHintText();
   renderBoard();
 });
