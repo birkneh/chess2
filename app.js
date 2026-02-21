@@ -2,7 +2,6 @@ import { Chess } from "https://unpkg.com/chess.js@1.4.0/dist/esm/chess.js";
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const WHITE_VIEW_RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
-const BLACK_VIEW_RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const HARD_DEPTH = 15;
 const AI_THINK_TIMEOUT_MS = 9000;
 const STOCKFISH_JS_URL =
@@ -108,17 +107,21 @@ function isCheckState() {
 }
 
 function getDisplaySquares() {
-  const files = humanColor === "w" ? FILES : [...FILES].reverse();
-  const ranks = humanColor === "w" ? WHITE_VIEW_RANKS : BLACK_VIEW_RANKS;
   const squares = [];
 
-  for (const rank of ranks) {
-    for (const file of files) {
+  for (const rank of WHITE_VIEW_RANKS) {
+    for (const file of FILES) {
       squares.push(file + rank);
     }
   }
 
   return squares;
+}
+
+function isLightSquare(square) {
+  const fileIndex = FILES.indexOf(square[0]);
+  const rank = Number(square[1]);
+  return (fileIndex + rank) % 2 === 0;
 }
 
 function clearSelection() {
@@ -186,7 +189,7 @@ function renderBoard() {
   const disabledBoard = aiThinking || isGameOverState();
   boardEl.innerHTML = "";
 
-  squares.forEach((square, index) => {
+  squares.forEach((square) => {
     const piece = game.get(square);
     const button = document.createElement("button");
     button.type = "button";
@@ -194,9 +197,7 @@ function renderBoard() {
     button.dataset.square = square;
     button.disabled = disabledBoard;
 
-    const row = Math.floor(index / 8);
-    const col = index % 8;
-    const isLight = (row + col) % 2 === 0;
+    const isLight = isLightSquare(square);
     button.classList.add(isLight ? "light" : "dark");
 
     if (selectedSquare === square) {
@@ -442,6 +443,12 @@ async function makeAiMove() {
 
 async function onSquareClick(square) {
   if (aiThinking || isGameOverState() || !isHumanTurn()) {
+    return;
+  }
+
+  if (selectedSquare === square) {
+    clearSelection();
+    renderBoard();
     return;
   }
 
