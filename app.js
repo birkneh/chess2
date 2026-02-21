@@ -96,7 +96,6 @@ function updateLevelSelector() {
     const option = document.createElement("option");
     option.value = String(index);
     option.textContent = level.label;
-    option.disabled = index > unlockedLevelIndex;
     levelSelectEl.appendChild(option);
   });
 
@@ -117,7 +116,7 @@ function updateProgressInfo(message = "") {
 }
 
 function canAdvanceToNextLevel() {
-  return currentLevelIndex < unlockedLevelIndex && currentLevelIndex < LEVELS.length - 1;
+  return currentLevelIndex < LEVELS.length - 1;
 }
 
 function updateNextLevelButton() {
@@ -284,14 +283,11 @@ function maybeHandleGameEndRewards() {
   winsTextEl.textContent = String(totalWins);
   addScore(level.winPoints);
 
-  if (currentLevelIndex === unlockedLevelIndex && unlockedLevelIndex < LEVELS.length - 1) {
-    unlockedLevelIndex += 1;
-    updateLevelSelector();
-    updateProgressInfo(`Next unlocked: ${LEVELS[unlockedLevelIndex].label}`);
-  } else {
-    updateProgressInfo(`Win points +${level.winPoints}`);
+  if (currentLevelIndex >= unlockedLevelIndex && unlockedLevelIndex < LEVELS.length - 1) {
+    unlockedLevelIndex = Math.min(currentLevelIndex + 1, LEVELS.length - 1);
   }
 
+  updateProgressInfo(`Win points +${level.winPoints}`);
   updateNextLevelButton();
 }
 
@@ -634,7 +630,7 @@ function resetGame(playerColor) {
 }
 
 function setLevel(index) {
-  if (Number.isNaN(index) || index < 0 || index > unlockedLevelIndex) {
+  if (Number.isNaN(index) || index < 0 || index >= LEVELS.length) {
     return;
   }
 
