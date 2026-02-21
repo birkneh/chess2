@@ -8,10 +8,16 @@ const STOCKFISH_JS_URL =
 const STOCKFISH_WASM_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.wasm";
 const LEVELS = [
-  { id: "beginner", label: "Beginner", depth: 4, movePoints: 5, winBonus: 80 },
-  { id: "intermediate", label: "Intermediate", depth: 7, movePoints: 10, winBonus: 180 },
-  { id: "advanced", label: "Advanced", depth: 11, movePoints: 16, winBonus: 320 },
-  { id: "hard", label: "Hard", depth: 15, movePoints: 24, winBonus: 520 },
+  { id: "beginner", label: "Beginner", aiMode: "random", depth: 1, winPoints: 80 },
+  {
+    id: "intermediate",
+    label: "Intermediate",
+    aiMode: "heuristic",
+    depth: 3,
+    winPoints: 180,
+  },
+  { id: "advanced", label: "Advanced", aiMode: "engine", depth: 8, winPoints: 320 },
+  { id: "hard", label: "Hard", aiMode: "engine", depth: 15, winPoints: 520 },
 ];
 
 const PIECE_IMAGES = {
@@ -46,6 +52,7 @@ const youEl = document.getElementById("you-text");
 const aiEl = document.getElementById("ai-text");
 const levelTextEl = document.getElementById("level-text");
 const scoreTextEl = document.getElementById("score-text");
+const winsTextEl = document.getElementById("wins-text");
 const progressTextEl = document.getElementById("progress-text");
 const levelPointsTextEl = document.getElementById("level-points-text");
 const moveListEl = document.getElementById("move-list");
@@ -65,6 +72,7 @@ let aiThinking = false;
 let currentLevelIndex = 0;
 let unlockedLevelIndex = 0;
 let score = 0;
+let totalWins = 0;
 let gameResultAwarded = false;
 
 let engineWorker = null;
@@ -105,9 +113,7 @@ function updateProgressInfo(message = "") {
   badgeEl.textContent = `${level.label} AI`;
   levelTextEl.textContent = level.label;
   progressTextEl.textContent = `${unlockedLevelIndex + 1} / ${LEVELS.length}`;
-  levelPointsTextEl.textContent = `+${level.movePoints}/move, +${level.winBonus} win bonus${
-    message ? ` - ${message}` : ""
-  }`;
+  levelPointsTextEl.textContent = `Win = +${level.winPoints} points${message ? ` - ${message}` : ""}`;
 }
 
 function canAdvanceToNextLevel() {
@@ -268,20 +274,22 @@ function maybeHandleGameEndRewards() {
   const winnerColor = game.turn() === "w" ? "b" : "w";
 
   if (winnerColor !== humanColor) {
-    updateProgressInfo("No bonus this round");
+    updateProgressInfo("No points this round");
     updateNextLevelButton();
     return;
   }
 
   const level = getCurrentLevel();
-  addScore(level.winBonus);
+  totalWins += 1;
+  winsTextEl.textContent = String(totalWins);
+  addScore(level.winPoints);
 
   if (currentLevelIndex === unlockedLevelIndex && unlockedLevelIndex < LEVELS.length - 1) {
     unlockedLevelIndex += 1;
     updateLevelSelector();
     updateProgressInfo(`Next unlocked: ${LEVELS[unlockedLevelIndex].label}`);
   } else {
-    updateProgressInfo(`Win bonus +${level.winBonus}`);
+    updateProgressInfo(`Win points +${level.winPoints}`);
   }
 
   updateNextLevelButton();
@@ -419,6 +427,17 @@ function fallbackMoveUci() {
   return `${best.from}${best.to}${best.promotion || ""}`;
 }
 
+function randomMoveUci() {
+  const moves = game.moves({ verbose: true });
+  if (!moves.length) {
+    return null;
+  }
+
+  const randomIndex = Math.floor(Math.random() * moves.length);
+  const randomMove = moves[randomIndex];
+  return `${randomMove.from}${randomMove.to}${randomMove.promotion || ""}`;
+}
+
 function handleEngineLine(line) {
   if (engineReadyHandler) {
     engineReadyHandler(line);
@@ -534,11 +553,19 @@ async function makeAiMove() {
   render();
 
   let aiMove = null;
-  try {
-    const bestMove = await requestAiMove(game.fen());
-    aiMove = moveFromUci(bestMove);
-  } catch (_error) {
+  const level = getCurrentLevel();
+
+  if (level.aiMode === "random") {
+    aiMove = moveFromUci(randomMoveUci());
+  } else if (level.aiMode === "heuristic") {
     aiMove = moveFromUci(fallbackMoveUci());
+  } else {
+    try {
+      const bestMove = await requestAiMove(game.fen());
+      aiMove = moveFromUci(bestMove);
+    } catch (_error) {
+      aiMove = moveFromUci(fallbackMoveUci());
+    }
   }
 
   if (!aiMove) {
@@ -575,9 +602,6 @@ async function onSquareClick(square) {
 
     const played = game.move(candidate);
     if (played) {
-      const level = getCurrentLevel();
-      addScore(level.movePoints);
-      updateProgressInfo(`Move bonus +${level.movePoints}`);
       clearSelection();
       render();
       await makeAiMove();
@@ -638,4 +662,5 @@ nextLevelBtn.addEventListener("click", () => {
 updateLevelSelector();
 updateProgressInfo();
 scoreTextEl.textContent = String(score);
+winsTextEl.textContent = String(totalWins);
 render();
