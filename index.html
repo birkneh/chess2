@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chess2 - Hard AI Chess</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="board-panel">
+        <div class="panel-header">
+          <h1>Chess2</h1>
+          <span class="badge">Hard AI</span>
+        </div>
+        <div id="board" class="board" aria-label="Chess board"></div>
+        <div class="controls">
+          <button id="new-game-btn" type="button">New Game</button>
+          <button id="play-white-btn" type="button">Play White</button>
+          <button id="play-black-btn" type="button">Play Black</button>
+        </div>
+      </section>
+
+      <aside class="info-panel">
+        <h2>Game Info</h2>
+        <p><strong>Status:</strong> <span id="status-text">Ready</span></p>
+        <p><strong>Turn:</strong> <span id="turn-text">White</span></p>
+        <p><strong>You:</strong> <span id="you-text">White</span></p>
+        <p><strong>AI:</strong> <span id="ai-text">Black (Hard)</span></p>
+        <h3>Moves</h3>
+        <ol id="move-list" class="move-list"></ol>
+      </aside>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
