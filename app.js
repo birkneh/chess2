@@ -10,19 +10,28 @@ const STOCKFISH_JS_URL =
 const STOCKFISH_WASM_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.wasm";
 
-const PIECE_GLYPHS = {
-  wp: "♙",
-  wn: "♘",
-  wb: "♗",
-  wr: "♖",
-  wq: "♕",
-  wk: "♔",
-  bp: "♟",
-  bn: "♞",
-  bb: "♝",
-  br: "♜",
-  bq: "♛",
-  bk: "♚",
+const PIECE_IMAGES = {
+  wp: "./assets/pieces/Chess_plt45.svg",
+  wn: "./assets/pieces/Chess_nlt45.svg",
+  wb: "./assets/pieces/Chess_blt45.svg",
+  wr: "./assets/pieces/Chess_rlt45.svg",
+  wq: "./assets/pieces/Chess_qlt45.svg",
+  wk: "./assets/pieces/Chess_klt45.svg",
+  bp: "./assets/pieces/Chess_pdt45.svg",
+  bn: "./assets/pieces/Chess_ndt45.svg",
+  bb: "./assets/pieces/Chess_bdt45.svg",
+  br: "./assets/pieces/Chess_rdt45.svg",
+  bq: "./assets/pieces/Chess_qdt45.svg",
+  bk: "./assets/pieces/Chess_kdt45.svg",
+};
+
+const PIECE_NAMES = {
+  p: "Pawn",
+  n: "Knight",
+  b: "Bishop",
+  r: "Rook",
+  q: "Queen",
+  k: "King",
 };
 
 const boardEl = document.getElementById("board");
@@ -199,8 +208,13 @@ function renderBoard() {
     }
 
     if (piece) {
-      button.textContent = PIECE_GLYPHS[piece.color + piece.type];
-      button.title = `${friendlyColor(piece.color)} ${piece.type.toUpperCase()}`;
+      const image = document.createElement("img");
+      image.className = "piece-image";
+      image.src = PIECE_IMAGES[piece.color + piece.type];
+      image.alt = `${friendlyColor(piece.color)} ${PIECE_NAMES[piece.type]}`;
+      image.draggable = false;
+      button.appendChild(image);
+      button.title = image.alt;
     }
 
     button.addEventListener("click", () => onSquareClick(square));

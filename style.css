@@ -1,13 +1,13 @@
 :root {
-  --bg: #f2efe8;
+  --bg: #ece8dd;
   --panel: #fffdf9;
-  --ink: #1f1b16;
+  --ink: #16120f;
   --accent: #2a6f4f;
-  --border: #d8d2c7;
-  --light-square: #e8d9be;
-  --dark-square: #9e7750;
-  --target: #7fbe72;
-  --selected: #f0bc5e;
+  --border: #cfc7b7;
+  --light-square: #f5e8d0;
+  --dark-square: #7b5332;
+  --target: #64b35c;
+  --selected: #f2b646;
 }
 
 * {
@@ -64,18 +64,20 @@ body {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   aspect-ratio: 1;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #4f3b2b;
+  border: 3px solid #2f2319;
+  box-shadow: 0 0 0 3px #bda98f;
 }
 
 .square {
   display: grid;
   place-items: center;
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
   cursor: pointer;
   border: none;
   user-select: none;
+  padding: 4px;
+  border-radius: 0;
 }
 
 .square:disabled {
@@ -88,6 +90,14 @@ body {
 
 .dark {
   background: var(--dark-square);
+}
+
+.piece-image {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28));
 }
 
 .selected {
