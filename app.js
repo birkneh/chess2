@@ -8,18 +8,37 @@ const STOCKFISH_JS_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.js";
 const STOCKFISH_WASM_URL =
   "https://unpkg.com/stockfish@18.0.5/bin/stockfish-18-lite-single.wasm";
-const LEVELS = [
-  { id: "beginner", label: "Beginner", aiMode: "random", depth: 1, winPoints: 80 },
-  {
-    id: "intermediate",
-    label: "Intermediate",
-    aiMode: "heuristic",
-    depth: 3,
-    winPoints: 180,
-  },
-  { id: "advanced", label: "Advanced", aiMode: "engine", depth: 8, winPoints: 320 },
-  { id: "hard", label: "Hard", aiMode: "engine", depth: 15, winPoints: 520 },
-];
+const LEVELS = Array.from({ length: 15 }, (_, index) => {
+  const levelNumber = index + 1;
+
+  if (levelNumber === 1) {
+    return {
+      id: "level-1",
+      label: "Level 1 (Starter)",
+      aiMode: "random",
+      depth: 1,
+      winPoints: 80,
+    };
+  }
+
+  if (levelNumber === 2) {
+    return {
+      id: "level-2",
+      label: "Level 2 (Easy)",
+      aiMode: "heuristic",
+      depth: 2,
+      winPoints: 120,
+    };
+  }
+
+  return {
+    id: `level-${levelNumber}`,
+    label: `Level ${levelNumber}`,
+    aiMode: "engine",
+    depth: Math.min(2 + levelNumber, 18),
+    winPoints: 120 + levelNumber * 40,
+  };
+});
 
 const PIECE_IMAGES = {
   wp: "./assets/pieces/Chess_plt45.svg",
