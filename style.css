@@ -145,6 +145,11 @@ button:hover {
   margin-top: 0;
 }
 
+#status-text.status-check {
+  color: #c62828;
+  font-weight: 700;
+}
+
 .move-list {
   max-height: 420px;
   overflow: auto;

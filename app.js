@@ -50,7 +50,6 @@ let aiColor = "b";
 let selectedSquare = null;
 let targetSquares = new Set();
 let aiThinking = false;
-let lastCheckAlertKey = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -134,6 +133,7 @@ function updateInfoText() {
   turnEl.textContent = friendlyColor(game.turn());
   youEl.textContent = friendlyColor(humanColor);
   aiEl.textContent = `${friendlyColor(aiColor)} (Hard)`;
+  statusEl.classList.remove("status-check");
 
   if (isGameOverState()) {
     if (isCheckmateState()) {
@@ -166,7 +166,9 @@ function updateInfoText() {
     return;
   }
 
-  statusEl.textContent = isCheckState()
+  const inCheck = isCheckState();
+  statusEl.classList.toggle("status-check", inCheck);
+  statusEl.textContent = inCheck
     ? `${friendlyColor(game.turn())} to move (in check)`
     : `${friendlyColor(game.turn())} to move`;
 }
@@ -233,24 +235,8 @@ function renderBoard() {
 
 function render() {
   updateInfoText();
-  maybeAlertCheck();
   updateMoveList();
   renderBoard();
-}
-
-function maybeAlertCheck() {
-  if (!isCheckState() || isGameOverState()) {
-    lastCheckAlertKey = null;
-    return;
-  }
-
-  const checkKey = game.fen();
-  if (lastCheckAlertKey === checkKey) {
-    return;
-  }
-
-  lastCheckAlertKey = checkKey;
-  alert(`${friendlyColor(game.turn())} is in check!`);
 }
 
 function isHumanTurn() {
@@ -502,7 +488,6 @@ function resetGame(playerColor) {
   aiColor = playerColor === "w" ? "b" : "w";
   clearSelection();
   aiThinking = false;
-  lastCheckAlertKey = null;
   render();
 
   if (game.turn() === aiColor) {
