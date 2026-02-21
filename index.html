@@ -18,6 +18,10 @@
           <button id="new-game-btn" type="button">New Game</button>
           <button id="play-white-btn" type="button">Play White</button>
           <button id="play-black-btn" type="button">Play Black</button>
+          <label class="hint-toggle" for="educative-toggle">
+            <input id="educative-toggle" type="checkbox" />
+            Educative Mode
+          </label>
           <label class="level-picker" for="level-select">
             Level
             <select id="level-select" aria-label="AI level"></select>
@@ -36,6 +40,7 @@
         <p><strong>Score:</strong> <span id="score-text">0</span></p>
         <p><strong>Wins:</strong> <span id="wins-text">0</span></p>
         <p><strong>Progress:</strong> <span id="progress-text">1 / 4</span></p>
+        <p><strong>Hint:</strong> <span id="hint-text">Off</span></p>
         <p id="level-points-text" class="level-points">Win = +80 points</p>
         <h3>Moves</h3>
         <ol id="move-list" class="move-list"></ol>

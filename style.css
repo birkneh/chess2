@@ -120,6 +120,29 @@ body {
   box-shadow: inset 0 0 0 4px var(--target);
 }
 
+.hint-from {
+  outline: 3px solid #2c68cf;
+  outline-offset: -3px;
+}
+
+.hint-to {
+  outline: 3px solid #3ca4ff;
+  outline-offset: -3px;
+  animation: hint-pulse 1.1s ease-in-out infinite;
+}
+
+.hint-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.hint-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
 .checked-king {
   animation: king-check-blink 0.9s linear infinite;
 }
@@ -131,6 +154,16 @@ body {
   }
   50% {
     box-shadow: inset 0 0 0 4px rgba(222, 47, 47, 0.25);
+  }
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    outline-color: rgba(60, 164, 255, 1);
+  }
+  50% {
+    outline-color: rgba(60, 164, 255, 0.25);
   }
 }
 

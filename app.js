@@ -54,11 +54,13 @@ const levelTextEl = document.getElementById("level-text");
 const scoreTextEl = document.getElementById("score-text");
 const winsTextEl = document.getElementById("wins-text");
 const progressTextEl = document.getElementById("progress-text");
+const hintTextEl = document.getElementById("hint-text");
 const levelPointsTextEl = document.getElementById("level-points-text");
 const moveListEl = document.getElementById("move-list");
 const newGameBtn = document.getElementById("new-game-btn");
 const playWhiteBtn = document.getElementById("play-white-btn");
 const playBlackBtn = document.getElementById("play-black-btn");
+const educativeToggleEl = document.getElementById("educative-toggle");
 const levelSelectEl = document.getElementById("level-select");
 const nextLevelBtn = document.getElementById("next-level-btn");
 
@@ -74,6 +76,9 @@ let unlockedLevelIndex = 0;
 let score = 0;
 let totalWins = 0;
 let gameResultAwarded = false;
+let educativeMode = false;
+let boardHovering = false;
+let preferredMove = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -135,6 +140,48 @@ function getKingSquare(color) {
   }
 
   return null;
+}
+
+function refreshPreferredMove() {
+  if (!educativeMode || aiThinking || isGameOverState() || !isHumanTurn()) {
+    preferredMove = null;
+    return;
+  }
+
+  const fen = game.fen();
+  if (preferredMove && preferredMove.fen === fen) {
+    return;
+  }
+
+  const preferredUci = fallbackMoveUci();
+  const move = moveFromUci(preferredUci);
+  preferredMove = move ? { ...move, fen } : null;
+}
+
+function updateHintText() {
+  if (!educativeMode) {
+    hintTextEl.textContent = "Off";
+    return;
+  }
+
+  if (isGameOverState()) {
+    hintTextEl.textContent = "Game over";
+    return;
+  }
+
+  if (!isHumanTurn()) {
+    hintTextEl.textContent = "Wait for your turn";
+    return;
+  }
+
+  if (!preferredMove) {
+    hintTextEl.textContent = "No hint available";
+    return;
+  }
+
+  hintTextEl.textContent = boardHovering
+    ? `${preferredMove.from} -> ${preferredMove.to}`
+    : "Hover board to reveal best move";
 }
 
 function callChessBool(methods) {
@@ -295,6 +342,7 @@ function renderBoard() {
   const squares = getDisplaySquares();
   const disabledBoard = aiThinking || isGameOverState();
   const checkedKingSquare = isCheckState() ? getKingSquare(game.turn()) : null;
+  const showHint = educativeMode && boardHovering && preferredMove && preferredMove.fen === game.fen();
   boardEl.innerHTML = "";
 
   squares.forEach((square) => {
@@ -318,6 +366,14 @@ function renderBoard() {
 
     if (checkedKingSquare && square === checkedKingSquare) {
       button.classList.add("checked-king");
+    }
+
+    if (showHint && square === preferredMove.from) {
+      button.classList.add("hint-from");
+    }
+
+    if (showHint && square === preferredMove.to) {
+      button.classList.add("hint-to");
     }
 
     if (piece) {
@@ -346,6 +402,8 @@ function render() {
   updateInfoText();
   maybeHandleGameEndRewards();
   updateMoveList();
+  refreshPreferredMove();
+  updateHintText();
   renderBoard();
   updateNextLevelButton();
 }
@@ -621,6 +679,8 @@ function resetGame(playerColor) {
   clearSelection();
   aiThinking = false;
   gameResultAwarded = false;
+  preferredMove = null;
+  boardHovering = false;
   updateProgressInfo();
   render();
 
@@ -654,9 +714,34 @@ nextLevelBtn.addEventListener("click", () => {
 
   setLevel(currentLevelIndex + 1);
 });
+educativeToggleEl.addEventListener("change", (event) => {
+  educativeMode = event.target.checked;
+  preferredMove = null;
+  boardHovering = false;
+  render();
+});
+boardEl.addEventListener("mouseenter", () => {
+  if (!educativeMode) {
+    return;
+  }
+
+  boardHovering = true;
+  updateHintText();
+  renderBoard();
+});
+boardEl.addEventListener("mouseleave", () => {
+  if (!educativeMode) {
+    return;
+  }
+
+  boardHovering = false;
+  updateHintText();
+  renderBoard();
+});
 
 updateLevelSelector();
 updateProgressInfo();
 scoreTextEl.textContent = String(score);
 winsTextEl.textContent = String(totalWins);
+updateHintText();
 render();
