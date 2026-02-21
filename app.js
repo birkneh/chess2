@@ -65,6 +65,7 @@ const PIECE_NAMES = {
 };
 
 const boardEl = document.getElementById("board");
+const winnerPingEl = document.getElementById("winner-ping");
 const badgeEl = document.getElementById("ai-badge");
 const statusEl = document.getElementById("status-text");
 const turnEl = document.getElementById("turn-text");
@@ -101,6 +102,7 @@ let boardHovering = false;
 let preferredMove = null;
 let hintRequestFen = null;
 let lastOpponentMove = null;
+let winnerPingTimeout = null;
 
 let engineWorker = null;
 let engineReadyPromise = null;
@@ -116,6 +118,23 @@ let hintBestMoveRejecter = null;
 
 function friendlyColor(colorCode) {
   return colorCode === "w" ? "White" : "Black";
+}
+
+function showWinnerPing(colorCode) {
+  const winner = friendlyColor(colorCode);
+  winnerPingEl.textContent = `${winner} Wins!`;
+  winnerPingEl.classList.remove("show");
+  // Restart animation cleanly.
+  void winnerPingEl.offsetWidth;
+  winnerPingEl.classList.add("show");
+
+  if (winnerPingTimeout) {
+    clearTimeout(winnerPingTimeout);
+  }
+
+  winnerPingTimeout = setTimeout(() => {
+    winnerPingEl.classList.remove("show");
+  }, 2500);
 }
 
 function getCurrentLevel() {
@@ -380,6 +399,7 @@ function maybeHandleGameEndRewards() {
 
   gameResultAwarded = true;
   const winnerColor = game.turn() === "w" ? "b" : "w";
+  showWinnerPing(winnerColor);
 
   if (winnerColor !== humanColor) {
     updateProgressInfo("No points this round");
@@ -851,6 +871,11 @@ function resetGame(playerColor) {
   preferredMove = null;
   hintRequestFen = null;
   lastOpponentMove = null;
+  winnerPingEl.classList.remove("show");
+  if (winnerPingTimeout) {
+    clearTimeout(winnerPingTimeout);
+    winnerPingTimeout = null;
+  }
   boardHovering = false;
   updateProgressInfo();
   render();
