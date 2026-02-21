@@ -218,7 +218,14 @@ function renderBoard() {
       button.title = image.alt;
     }
 
-    button.addEventListener("click", () => onSquareClick(square));
+    button.addEventListener("click", () => {
+      if (selectedSquare === square) {
+        clearSelection();
+        renderBoard();
+        return;
+      }
+      onSquareClick(square);
+    });
     boardEl.appendChild(button);
   });
 }
@@ -443,12 +450,6 @@ async function makeAiMove() {
 
 async function onSquareClick(square) {
   if (aiThinking || isGameOverState() || !isHumanTurn()) {
-    return;
-  }
-
-  if (selectedSquare === square) {
-    clearSelection();
-    renderBoard();
     return;
   }
 

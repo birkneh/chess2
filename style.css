@@ -39,6 +39,11 @@ body {
   box-shadow: 0 8px 24px rgba(28, 24, 20, 0.08);
 }
 
+.board-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -62,9 +67,11 @@ body {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  width: min(100%, 560px);
   aspect-ratio: 1;
+  margin: 0 auto;
   border-radius: 10px;
   overflow: hidden;
   border: 3px solid #2f2319;
@@ -80,7 +87,7 @@ body {
   cursor: pointer;
   border: none;
   user-select: none;
-  padding: 4px;
+  padding: 2px;
   border-radius: 0;
 }
 
